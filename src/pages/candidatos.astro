@@ -1,0 +1,10 @@
+---
+import Layout from '../layouts/Layout.astro'
+import CandidateDashboard from '../components/CandidateDashboard'
+---
+
+<Layout title="Dashboard de Candidatos">
+  <main class="h-screen overflow-y-auto bg-[#0a0a0a] text-white">
+    <CandidateDashboard client:only="react" />
+  </main>
+</Layout>

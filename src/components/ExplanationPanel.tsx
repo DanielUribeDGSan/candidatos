@@ -10,6 +10,12 @@ const DIFFICULTY_CONFIG: Record<Difficulty, { en: string; es: string; color: str
         color: 'text-emerald-400',
         bg: 'bg-emerald-400/10 border-emerald-400/20',
     },
+    medium: {
+        en: 'Medium',
+        es: 'Medio',
+        color: 'text-amber-400',
+        bg: 'bg-amber-400/10 border-amber-400/20',
+    },
     intermediate: {
         en: 'Intermediate',
         es: 'Intermedio',
@@ -89,7 +95,7 @@ export default function ExplanationPanel({
                                                         className={`inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 text-[11px] font-semibold rounded-full border ${cfg.bg} ${cfg.color}`}
                                                     >
                                                         <span
-                                                            className={`w-1.5 h-1.5 rounded-full ${difficulty === 'easy' ? 'bg-emerald-400' : difficulty === 'intermediate' ? 'bg-amber-400' : 'bg-red-400'}`}
+                                                            className={`w-1.5 h-1.5 rounded-full ${difficulty === 'easy' ? 'bg-emerald-400' : (difficulty === 'medium' || difficulty === 'intermediate') ? 'bg-amber-400' : 'bg-red-400'}`}
                                                         />
                                                         {label}
                                                     </span>

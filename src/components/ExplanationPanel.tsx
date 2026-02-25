@@ -60,11 +60,14 @@ export default function ExplanationPanel({
 
             {/* Content */}
             <div className="flex-1 overflow-auto p-4 md:p-6">
-                <article className="text-[14px] text-neutral-300 leading-relaxed font-[inherit]">
+                <article className="text-[14px] text-neutral-300 leading-relaxed font-[inherit] [&_pre]:my-4 [&_pre]:rounded-lg [&_pre]:border [&_pre]:border-white/10 [&_pre]:bg-neutral-900/80 [&_pre]:p-4 [&_pre]:overflow-x-auto [&_pre_code]:block [&_pre_code]:font-mono [&_pre_code]:text-[13px] [&_pre_code]:leading-relaxed [&_pre_code]:text-neutral-300 [&_pre_code]:whitespace-pre">
                     {(() => {
                         const lines = description.split('\n')
                         const elements: React.ReactElement[] = []
                         let listItems: React.ReactElement[] = []
+                        let inCodeBlock = false
+                        let codeBlockLines: string[] = []
+                        let codeBlockKey = 0
 
                         const flushList = () => {
                             if (listItems.length > 0) {
@@ -77,12 +80,43 @@ export default function ExplanationPanel({
                             }
                         }
 
+                        const flushCodeBlock = () => {
+                            if (codeBlockLines.length > 0) {
+                                elements.push(
+                                    <pre key={`code-${codeBlockKey++}`}>
+                                        <code>{codeBlockLines.join('\n')}</code>
+                                    </pre>
+                                )
+                                codeBlockLines = []
+                            }
+                            inCodeBlock = false
+                        }
+
                         lines.forEach((line, i) => {
-                            if (!line.trim().match(/^[0-9]+\. /)) {
+                            const trimmed = line.trim()
+
+                            // Fenced code block: start or end
+                            if (trimmed.startsWith('```')) {
+                                if (!inCodeBlock) {
+                                    flushList()
+                                    inCodeBlock = true
+                                    codeBlockLines = []
+                                } else {
+                                    flushCodeBlock()
+                                }
+                                return
+                            }
+
+                            if (inCodeBlock) {
+                                codeBlockLines.push(line)
+                                return
+                            }
+
+                            if (!trimmed.match(/^[0-9]+\. /)) {
                                 flushList()
                             }
 
-                            if (i === 0 && line.trim().startsWith('# ')) {
+                            if (i === 0 && trimmed.startsWith('# ')) {
                                 elements.push(
                                     <div key={i} className="mb-4">
                                         <h3 className="text-xl font-bold text-white font-heading">{line.replace('# ', '')}</h3>
@@ -103,31 +137,31 @@ export default function ExplanationPanel({
                                             })()}
                                     </div>
                                 )
-                            } else if (line.trim().startsWith('### ')) {
+                            } else if (trimmed.startsWith('### ')) {
                                 elements.push(
                                     <h4 key={i} className="text-base font-semibold text-neutral-200 mt-6 mb-3 font-heading">
                                         {line.replace('### ', '')}
                                     </h4>
                                 )
-                            } else if (line.trim().startsWith('**') && line.trim().endsWith('**')) {
+                            } else if (trimmed.startsWith('**') && trimmed.endsWith('**')) {
                                 elements.push(
                                     <p key={i} className="text-sm font-semibold text-white my-3">
                                         {line.replace(/\*\*/g, '')}
                                     </p>
                                 )
-                            } else if (line.trim().match(/^[0-9]+\. /)) {
+                            } else if (trimmed.match(/^[0-9]+\. /)) {
                                 listItems.push(
                                     <li key={i} className="my-1.5 text-[13.5px] pl-2">
                                         <span dangerouslySetInnerHTML={{ __html: line.replace(/^[0-9]+\. /, '').replace(/`([^`]+)`/g, '<code class="bg-white/10 text-sky-300 px-1 py-0.5 rounded font-mono text-xs">$1</code>') }} />
                                     </li>
                                 )
-                            } else if (line.trim().startsWith('*') && line.trim().endsWith('*')) {
+                            } else if (trimmed.startsWith('*') && trimmed.endsWith('*')) {
                                 elements.push(
                                     <p key={i} className="italic text-neutral-500 my-4 text-sm">
                                         {line.replace(/\*/g, '')}
                                     </p>
                                 )
-                            } else if (!line.trim()) {
+                            } else if (!trimmed) {
                                 // skip empty spacing
                             } else {
                                 elements.push(
@@ -137,6 +171,7 @@ export default function ExplanationPanel({
                         })
 
                         flushList()
+                        flushCodeBlock()
 
                         return elements
                     })()}

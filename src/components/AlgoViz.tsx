@@ -123,7 +123,7 @@ export default function AlgoViz({
         if (candidateInfo.completed) {
           setAllTestsCompleted(true)
         } else if (candidateInfo.start_time) {
-          const durationMs = 10 * 60 * 1000 // 10 mins
+          const durationMs = 20 * 60 * 1000 // 20 mins
           const start = new Date(candidateInfo.start_time).getTime()
           const now = new Date().getTime()
           const elapsed = now - start

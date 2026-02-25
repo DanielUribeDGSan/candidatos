@@ -184,23 +184,26 @@ export default function Header({
             </svg>
           </button>
         )}
-        <nav aria-label={locale === 'es' ? 'Idioma' : 'Language'} className="flex items-center gap-0.5 bg-white/6 rounded-lg p-0.5 border border-white/8">
-          {locales.map((l) => (
-            <a
-              key={l}
-              href={getLocaleUrl(l, selectedTest?.id)}
-              className={`px-2 md:px-2.5 py-1 text-[11px] font-medium rounded-md transition-all ${l === locale
-                ? 'bg-white text-black'
-                : 'text-neutral-500 hover:text-white hover:bg-white/6'
-                }`}
-              aria-label={localeNames[l]}
-              aria-current={l === locale ? 'page' : undefined}
-              lang={l}
-            >
-              {l.toUpperCase()}
-            </a>
-          ))}
-        </nav>
+        {/* Selector de idioma oculto de momento */}
+        {false && (
+          <nav aria-label={locale === 'es' ? 'Idioma' : 'Language'} className="flex items-center gap-0.5 bg-white/6 rounded-lg p-0.5 border border-white/8">
+            {locales.map((l) => (
+              <a
+                key={l}
+                href={getLocaleUrl(l, selectedTest?.id)}
+                className={`px-2 md:px-2.5 py-1 text-[11px] font-medium rounded-md transition-all ${l === locale
+                  ? 'bg-white text-black'
+                  : 'text-neutral-500 hover:text-white hover:bg-white/6'
+                  }`}
+                aria-label={localeNames[l]}
+                aria-current={l === locale ? 'page' : undefined}
+                lang={l}
+              >
+                {l.toUpperCase()}
+              </a>
+            ))}
+          </nav>
+        )}
       </div>
     </header>
   )

@@ -203,21 +203,361 @@ export const rj4: Test = {
 // ANGULAR TRACKS (No regex evaluation for framework tests)
 // ==============================
 
-export const as1: Test = { id: 'as-1', name: 'Angular 1: Custom Directives', category: 'Angular', difficulty: 'advanced', description: 'Create a structural directive.', initialCode: `// Write your Angular code here` }
-export const as2: Test = { id: 'as-2', name: 'Angular 2: RxJS Operators', category: 'Angular', difficulty: 'advanced', description: 'Use SwitchMap.', initialCode: `// Write your Angular code here` }
-export const as3: Test = { id: 'as-3', name: 'Angular 3: Resolvers', category: 'Angular', difficulty: 'advanced', description: 'Implement a route resolver.', initialCode: `// Write your Angular code here` }
+export const as1: Test = {
+  id: 'as-1',
+  name: 'Angular 1: Custom Directives',
+  category: 'Angular',
+  difficulty: 'advanced',
+  description: `# Senior Angular Test 1
 
-export const am1: Test = { id: 'am-1', name: 'Angular 1: Reactive Forms', category: 'Angular', difficulty: 'medium', description: 'Build a form group.', initialCode: `// Write your Angular code here` }
-export const am2: Test = { id: 'am-2', name: 'Angular 2: Services', category: 'Angular', difficulty: 'medium', description: 'Inject a singleton service.', initialCode: `// Write your Angular code here` }
-export const am3: Test = { id: 'am-3', name: 'Angular 3: Pipes', category: 'Angular', difficulty: 'medium', description: 'Create a custom pipe.', initialCode: `// Write your Angular code here` }
+**Goal:** Create a structural directive that changes the DOM layout (similar in concept to \`*ngIf\` or \`*ngFor\`).
 
-export const aj1: Test = { id: 'aj-1', name: 'Angular 1: Components', category: 'Angular', difficulty: 'easy', description: 'Basic component logic.', initialCode: `// Write your Angular code here` }
-export const aj2: Test = { id: 'aj-2', name: 'Angular 2: Data Binding', category: 'Angular', difficulty: 'easy', description: 'Interpolate string.', initialCode: `// Write your Angular code here` }
-export const aj3: Test = { id: 'aj-3', name: 'Angular 3: ngFor', category: 'Angular', difficulty: 'easy', description: 'Loop array.', initialCode: `// Write your Angular code here` }
+### Requirements:
+1. Create a directive class with the \`*\` prefix syntax (structural directive).
+2. Inject \`TemplateRef\` and \`ViewContainerRef\` to add or remove the host view based on a condition.
+3. Implement at least one \`@Input()\` that controls when the template is rendered (e.g. a boolean or expression).
 
-export const as4: Test = { id: 'as-4', name: 'Angular 4: Unit Testing (Component)', category: 'Angular', difficulty: 'advanced', description: '# Senior Angular Test 4\n\n**Goal:** Write a test for an Angular component with dependencies.\n\n### Requirements:\n1. Use `TestBed.createComponent`.\n2. Mock a service used by the component.\n3. Verify a specific behavior in the DOM after a service call.', initialCode: `// Write your Angular test here` }
-export const am4: Test = { id: 'am-4', name: 'Angular 4: Component Communication', category: 'Angular', difficulty: 'medium', description: 'Implement @Input and @Output with custom event emitters.', initialCode: `// Write your Angular code here` }
-export const aj4: Test = { id: 'aj-4', name: 'Angular 4: Basic Validation', category: 'Angular', difficulty: 'easy', description: 'Add required validator to a form control.', initialCode: `// Write your Angular code here` }
+### Example pattern:
+
+\`\`\`ts
+@Directive({ selector: '[appShowWhen]' })
+export class ShowWhenDirective {
+  constructor(
+    private templateRef: TemplateRef<any>,
+    private vcr: ViewContainerRef
+  ) {}
+  // Add logic to create/clear the embedded view based on an @Input()
+}
+\`\`\`
+
+*Note: Write the complete directive in the editor. Use the selector and inputs that you find clearest.*`,
+  initialCode: `// Write your Angular code here`
+}
+export const as2: Test = {
+  id: 'as-2',
+  name: 'Angular 2: RxJS Operators',
+  category: 'Angular',
+  difficulty: 'advanced',
+  description: `# Senior Angular Test 2
+
+**Goal:** Use \`switchMap\` (or equivalent) to handle a stream that depends on another (e.g. search term → HTTP request), cancelling previous inner subscriptions when the outer value changes.
+
+### Requirements:
+1. Assume you have an observable source (e.g. user typing in a search box or route params).
+2. For each emission, trigger an async operation (e.g. \`HttpClient.get\` or a service method returning \`Observable\`).
+3. Use \`switchMap\` so that when the source emits again before the inner observable completes, the previous inner subscription is cancelled and the new one is used.
+4. Log or return the final stream of results (you can mock the HTTP call with \`of()\` or \`timer()\` if needed).
+
+### Example pattern:
+
+\`\`\`ts
+searchTerm$.pipe(
+  switchMap(term => this.http.get('/api/search?q=' + term))
+).subscribe(results => console.log(results));
+\`\`\`
+
+*Note: Write a short component or service snippet that demonstrates \`switchMap\` usage.*`,
+  initialCode: `// Write your Angular code here`
+}
+export const as3: Test = {
+  id: 'as-3',
+  name: 'Angular 3: Resolvers',
+  category: 'Angular',
+  difficulty: 'advanced',
+  description: `# Senior Angular Test 3
+
+**Goal:** Implement a route resolver that fetches data before the route activates, so the component can assume data is already available.
+
+### Requirements:
+1. Create a class that implements \`Resolve<T>\` (or the functional resolver approach with \`resolve\` function).
+2. Inject the service you need to load data (e.g. \`UserService\`) and return an \`Observable\` or \`Promise\` from \`resolve()\`.
+3. Register the resolver in the route configuration under \`resolve: { key: YourResolver }\`.
+4. Optionally show how the component would read the resolved data from \`ActivatedRoute.data\`.
+
+### Example pattern:
+
+\`\`\`ts
+@Injectable({ providedIn: 'root' })
+export class UserResolver implements Resolve<User> {
+  constructor(private userService: UserService) {}
+  resolve(route: ActivatedRouteSnapshot): Observable<User> {
+    return this.userService.getUser(route.params['id']);
+  }
+}
+// In routes: { path: 'user/:id', component: UserComponent, resolve: { user: UserResolver } }
+\`\`\`
+
+*Note: Write the resolver and, if you like, the route config or component usage.*`,
+  initialCode: `// Write your Angular code here`
+}
+
+export const am1: Test = {
+  id: 'am-1',
+  name: 'Angular 1: Reactive Forms',
+  category: 'Angular',
+  difficulty: 'medium',
+  description: `# Middle Angular Test 1
+
+**Goal:** Build a reactive form using \`FormGroup\` and \`FormControl\` (from \`@angular/forms\`).
+
+### Requirements:
+1. Create a \`FormGroup\` with at least two controls (e.g. \`email\` and \`password\`).
+2. Use \`FormControl\` with optional validators (e.g. \`Validators.required\`, \`Validators.email\`).
+3. In the template or in the class, show how you would read the form value or subscribe to value changes.
+4. Optionally add a simple submit handler that logs the form value or validity.
+
+### Example pattern:
+
+\`\`\`ts
+form = new FormGroup({
+  email: new FormControl('', [Validators.required, Validators.email]),
+  password: new FormControl('', [Validators.required, Validators.minLength(6)])
+});
+// In template: formGroup, formControlName, and (ngSubmit)
+\`\`\`
+
+*Note: Write the FormGroup setup in the component class; template markup is optional.*`,
+  initialCode: `// Write your Angular code here`
+}
+export const am2: Test = {
+  id: 'am-2',
+  name: 'Angular 2: Services',
+  category: 'Angular',
+  difficulty: 'medium',
+  description: `# Middle Angular Test 2
+
+**Goal:** Create an injectable singleton service and inject it into a component or another service.
+
+### Requirements:
+1. Create a service class with \`@Injectable({ providedIn: 'root' })\` so it is a singleton app-wide.
+2. Add at least one method or property that the consumer will use (e.g. \`getData()\`, \`state\`).
+3. Show how a component (or another service) injects it via the constructor and uses it (e.g. calls the method or reads the property).
+4. Do not use \`providedIn: 'root'\` only if you explicitly show providing it in a module or component and explain why.
+
+### Example pattern:
+
+\`\`\`ts
+@Injectable({ providedIn: 'root' })
+export class DataService {
+  getItems(): Observable<Item[]> { return this.http.get<Item[]>('/api/items'); }
+}
+// In component:
+constructor(private dataService: DataService) {}
+ngOnInit() { this.dataService.getItems().subscribe(...); }
+\`\`\`
+
+*Note: You can mock the HTTP call with \`of([])\` if you prefer not to use HttpClient.*`,
+  initialCode: `// Write your Angular code here`
+}
+export const am3: Test = {
+  id: 'am-3',
+  name: 'Angular 3: Pipes',
+  category: 'Angular',
+  difficulty: 'medium',
+  description: `# Middle Angular Test 3
+
+**Goal:** Create a custom pipe that transforms input data for use in the template.
+
+### Requirements:
+1. Create a class with the \`@Pipe\` decorator and a \`name\` (e.g. \`appReverse\`).
+2. Implement \`PipeTransform\` and the \`transform(value, ...args)\` method.
+3. Return a value that can be used in the template (e.g. reversed string, formatted number, filtered list).
+4. Show example usage in a template: \`{{ value | appReverse }}\` or with arguments \`{{ value | myPipe:arg }}\`.
+
+### Example pattern:
+
+\`\`\`ts
+@Pipe({ name: 'appReverse' })
+export class ReversePipe implements PipeTransform {
+  transform(value: string): string {
+    return value ? value.split('').reverse().join('') : '';
+  }
+}
+// Template: {{ title | appReverse }}
+\`\`\`
+
+*Note: Write the full pipe class and, if you like, one line of template usage.*`,
+  initialCode: `// Write your Angular code here`
+}
+
+export const aj1: Test = {
+  id: 'aj-1',
+  name: 'Angular 1: Components',
+  category: 'Angular',
+  difficulty: 'easy',
+  description: `# Junior Angular Test 1
+
+**Goal:** Create a basic Angular component with a template and a simple property.
+
+### Requirements:
+1. Create a component class with \`@Component\` decorator (selector and template or templateUrl).
+2. Add at least one property on the class (e.g. \`title: string = 'Hello'\`) and display it in the template.
+3. Use the appropriate module or standalone \`imports\` so the component can be used (you can assume the component is declared in a module or marked \`standalone: true\`).
+
+### Example pattern:
+
+\`\`\`ts
+@Component({
+  selector: 'app-greeting',
+  template: '<h1>{{ title }}</h1>'
+})
+export class GreetingComponent {
+  title = 'Hello, Angular!';
+}
+\`\`\`
+
+*Note: Write the component class and inline template.*`,
+  initialCode: `// Write your Angular code here`
+}
+export const aj2: Test = {
+  id: 'aj-2',
+  name: 'Angular 2: Data Binding',
+  category: 'Angular',
+  difficulty: 'easy',
+  description: `# Junior Angular Test 2
+
+**Goal:** Use interpolation and (optionally) property or event binding in a template.
+
+### Requirements:
+1. In the component class, define a string property (e.g. \`name\` or \`message\`).
+2. In the template, use interpolation \`{{ propertyName }}\` to show that value.
+3. Optionally add a simple event binding (e.g. \`(click)="method()"\`) or property binding (e.g. \`[disabled]="flag"\`) to show you understand the syntax.
+
+### Example pattern:
+
+\`\`\`ts
+// Class
+name = 'World';
+// Template
+<p>Hello, {{ name }}!</p>
+<button (click)="name = 'Angular'">Change</button>
+\`\`\`
+
+*Note: Focus on correct \`{{ }}\` and at least one binding.*`,
+  initialCode: `// Write your Angular code here`
+}
+export const aj3: Test = {
+  id: 'aj-3',
+  name: 'Angular 3: ngFor',
+  category: 'Angular',
+  difficulty: 'easy',
+  description: `# Junior Angular Test 3
+
+**Goal:** Render a list of items from an array using \`*ngFor\`.
+
+### Requirements:
+1. In the component class, define an array of objects (e.g. \`items = [{ id: 1, name: 'A' }, { id: 2, name: 'B' }]\`).
+2. In the template, use \`*ngFor\` to loop over the array and render each item (e.g. in \`<li>\` or \`<p>\`).
+3. Use a unique \`trackBy\` or ensure each item has a unique identifier to avoid key issues (optional but good practice).
+
+### Example pattern:
+
+\`\`\`ts
+items = [{ id: 1, name: 'Apple' }, { id: 2, name: 'Banana' }];
+\`\`\`
+
+\`\`\`html
+<ul>
+  <li *ngFor="let item of items">{{ item.name }}</li>
+</ul>
+\`\`\`
+
+*Note: Write the component array and the template with \`*ngFor\`.*`,
+  initialCode: `// Write your Angular code here`
+}
+
+export const as4: Test = {
+  id: 'as-4',
+  name: 'Angular 4: Unit Testing (Component)',
+  category: 'Angular',
+  difficulty: 'advanced',
+  description: `# Senior Angular Test 4
+
+**Goal:** Write a test for an Angular component that depends on a service, using \`TestBed\` and a mocked dependency.
+
+### Requirements:
+1. Use \`TestBed.configureTestingModule\` and \`TestBed.createComponent\` to create the component under test.
+2. Provide a mock (or stub) for the service injected by the component (e.g. \`{ provide: MyService, useValue: mockService }\`).
+3. Trigger the behavior that calls the service (e.g. \`fixture.detectChanges()\` or a user action).
+4. Verify a specific outcome in the DOM (e.g. \`expect(fixture.nativeElement.textContent).toContain('...')\`) or that the service method was called.
+
+### Example pattern:
+
+\`\`\`ts
+const mockService = { getData: jasmine.createSpy('getData').and.returnValue(of({ title: 'Test' })) };
+TestBed.configureTestingModule({
+  declarations: [MyComponent],
+  providers: [ { provide: MyService, useValue: mockService } ]
+});
+const fixture = TestBed.createComponent(MyComponent);
+fixture.detectChanges();
+expect(mockService.getData).toHaveBeenCalled();
+expect(fixture.nativeElement.textContent).toContain('Test');
+\`\`\`
+
+*Note: You can use Jasmine or Jest syntax; focus on TestBed setup, mocking, and one DOM or spy assertion.*`,
+  initialCode: `// Write your Angular test here`
+}
+export const am4: Test = {
+  id: 'am-4',
+  name: 'Angular 4: Component Communication',
+  category: 'Angular',
+  difficulty: 'medium',
+  description: `# Middle Angular Test 4
+
+**Goal:** Implement parent-child communication using \`@Input\` and \`@Output\` with an \`EventEmitter\`.
+
+### Requirements:
+1. Create a child component with at least one \`@Input()\` property (e.g. \`title\` or \`item\`).
+2. Add at least one \`@Output()\` property of type \`EventEmitter<T>\` (e.g. \`itemSelected\` or \`closed\`).
+3. In the child template, use the input and emit an event on a user action (e.g. button click).
+4. Show how the parent would bind to the input and subscribe to the output: \`[input]="value"\` and \`(output)="handler($event)"\`.
+
+### Example pattern:
+
+\`\`\`ts
+// Child
+@Input() label: string;
+@Output() clicked = new EventEmitter<void>();
+// Template: <button (click)="clicked.emit()">{{ label }}</button>
+
+// Parent template: <app-child [label]="'Submit'" (clicked)="onSubmit()"></app-child>
+\`\`\`
+
+*Note: Write the child component class (and optionally template) and a short parent usage example.*`,
+  initialCode: `// Write your Angular code here`
+}
+export const aj4: Test = {
+  id: 'aj-4',
+  name: 'Angular 4: Basic Validation',
+  category: 'Angular',
+  difficulty: 'easy',
+  description: `# Junior Angular Test 4
+
+**Goal:** Add the \`required\` validator to a reactive form control and check the control's validity.
+
+### Requirements:
+1. Create at least one \`FormControl\` with \`Validators.required\` (and optionally an initial value like \`''\`).
+2. In the template or in the class, show how you would display or read the control's validity (e.g. \`control.invalid\`, \`control.errors\`).
+3. Optionally bind the control to an input with \`formControlName\` (if you use a \`FormGroup\`) or show \`control.valueChanges\` / \`control.statusChanges\`.
+
+### Example pattern:
+
+\`\`\`ts
+import { FormControl, Validators } from '@angular/forms';
+
+email = new FormControl('', Validators.required);
+// email.valid / email.invalid / email.errors?.['required']
+\`\`\`
+
+\`\`\`html
+<input [formControl]="email" />
+<span *ngIf="email.invalid && email.touched">Required</span>
+\`\`\`
+
+*Note: Write the FormControl with \`Validators.required\` and one way to use its validity.*`,
+  initialCode: `// Write your Angular code here`
+}
 
 export const reactSenior: Track = { id: 'react-senior', name: 'React Senior', tests: [rs1, rs2, rs3, jsAdvanced1, jsAdvanced2, tsAdvanced1, tsAdvanced2, cssAdvanced1, cssAdvanced2, rs4] }
 export const reactMiddle: Track = { id: 'react-middle', name: 'React Middle', tests: [rm1, rm2, rm3, jsMiddle1, jsMiddle2, tsMiddle1, tsMiddle2, cssMiddle1, cssMiddle2, jsAdvanced1] }

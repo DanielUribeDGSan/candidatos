@@ -13,13 +13,39 @@ export default function EmailCaptureModal({ onSuccess, trackId }: EmailCaptureMo
     const [isVisible, setIsVisible] = useState(false)
 
     useEffect(() => {
-        // Check local storage first to prevent showing modal if already started
         const storedEmail = localStorage.getItem(`algodev_test_email_${trackId}`)
-        if (storedEmail) {
-            onSuccess(storedEmail)
-        } else {
+        if (!storedEmail) {
             setIsVisible(true)
+            return
         }
+
+        // Verify with Supabase: if exam was reset or candidate removed, clear local and show modal again
+        let cancelled = false
+        const verifyAndEnter = async () => {
+            const { data, error } = await supabase
+                .from('candidates')
+                .select('start_time, completed')
+                .eq('email', storedEmail)
+                .eq('track', trackId)
+                .maybeSingle()
+
+            if (cancelled) return
+
+            const noCandidate = error?.code === 'PGRST116' || (!error && !data)
+            const hasNoStartTime = data && data.start_time == null
+            const alreadyCompleted = data?.completed === true
+
+            if (noCandidate || hasNoStartTime || alreadyCompleted) {
+                localStorage.removeItem(`algodev_test_email_${trackId}`)
+                localStorage.removeItem(`candidate_drafts_${storedEmail}_${trackId}`)
+                setIsVisible(true)
+                return
+            }
+
+            onSuccess(storedEmail)
+        }
+        verifyAndEnter()
+        return () => { cancelled = true }
     }, [trackId, onSuccess])
 
     const handleSubmit = async (e: React.FormEvent) => {

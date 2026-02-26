@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import type { Locale } from '@i18n/translations'
 import { translations } from '@i18n/translations'
 import { tracks, categories } from '@lib/tests'
@@ -22,10 +22,7 @@ interface AlgoVizProps {
   locale?: Locale
 }
 
-export default function AlgoViz({
-  initialTrackId,
-  locale = 'en',
-}: AlgoVizProps) {
+export default function AlgoViz({ initialTrackId, locale = 'en' }: AlgoVizProps) {
   const [isMobile, setIsMobile] = useState(false)
   const [candidateEmail, setCandidateEmail] = useState<string | null>(null)
   const [evaluationSuccess, setEvaluationSuccess] = useState(false)
@@ -35,6 +32,11 @@ export default function AlgoViz({
   const [isTimeUp, setIsTimeUp] = useState(false)
   const [allTestsCompleted, setAllTestsCompleted] = useState(false)
 
+  // Anti-cheating: inactividad (sin mouse/teclado 1 min) y cambios de pestaña (solo refs; se persisten en Supabase)
+  const lastActivityAt = useRef(Date.now())
+  const inactivitySecondsRef = useRef(0)
+  const tabSwitchesRef = useRef(0)
+
   // Track state
   const activeTrack = tracks.find((t) => t.id === initialTrackId) || null
   const [selectedTest, setSelectedTest] = useState<Test | null>(() => {
@@ -42,7 +44,8 @@ export default function AlgoViz({
   })
 
   // Helpers
-  const currentTestIndex = selectedTest && activeTrack ? activeTrack.tests.findIndex(t => t.id === selectedTest.id) : -1
+  const currentTestIndex =
+    selectedTest && activeTrack ? activeTrack.tests.findIndex((t) => t.id === selectedTest.id) : -1
   const hasNextTest = activeTrack ? currentTestIndex < activeTrack.tests.length - 1 : false
 
   // Resize hooks
@@ -106,26 +109,42 @@ export default function AlgoViz({
     }
   }, [initialTrackId])
 
-  // Fetch candidate Data
+  // Fetch candidate Data (timer always from Supabase; if exam was reset, clear local and ask for email again)
   useEffect(() => {
     if (!candidateEmail || !activeTrack) return
 
     const fetchCandidateData = async () => {
-      // 1. Fetch candidate
-      const { data: candidateInfo } = await supabase
+      const { data: candidateInfo, error } = await supabase
         .from('candidates')
-        .select('start_time, completed')
+        .select('start_time, completed, inactivity_seconds, tab_switches')
         .eq('email', candidateEmail)
         .eq('track', activeTrack.id)
-        .single()
+        .maybeSingle()
+
+      const noCandidate = error?.code === 'PGRST116' || (!error && !candidateInfo)
+      const hasNoStartTime =
+        candidateInfo && candidateInfo.start_time == null && !candidateInfo.completed
+
+      if (noCandidate || hasNoStartTime) {
+        localStorage.removeItem(`algodev_test_email_${activeTrack.id}`)
+        localStorage.removeItem(`candidate_drafts_${candidateEmail}_${activeTrack.id}`)
+        setCandidateEmail(null)
+        setTimeRemaining(null)
+        setCompletedTestIds([])
+        return
+      }
 
       if (candidateInfo) {
+        inactivitySecondsRef.current = candidateInfo.inactivity_seconds ?? 0
+        tabSwitchesRef.current = candidateInfo.tab_switches ?? 0
+        lastActivityAt.current = Date.now()
+
         if (candidateInfo.completed) {
           setAllTestsCompleted(true)
         } else if (candidateInfo.start_time) {
-          const durationMs = 90 * 60 * 1000 // 90 mins
+          const durationMs = 50 * 60 * 1000 // 50 mins
           const start = new Date(candidateInfo.start_time).getTime()
-          const now = new Date().getTime()
+          const now = Date.now()
           const elapsed = now - start
 
           if (elapsed >= durationMs) {
@@ -137,7 +156,6 @@ export default function AlgoViz({
         }
       }
 
-      // 2. Fetch completed results: Merge Supabase and LocalStorage to prevent data loss or 4/10 discrepancy
       const { data: results } = await supabase
         .from('candidate_results')
         .select('test_id, code, passed')
@@ -156,7 +174,6 @@ export default function AlgoViz({
         })
       }
 
-      // Sync back to localStorage and state
       localStorage.setItem(draftKey, JSON.stringify(mergedDrafts))
       setCompletedTestIds(mergedDrafts.map((r: any) => r.test_id))
     }
@@ -176,15 +193,23 @@ export default function AlgoViz({
         track: activeTrack.id,
         test_id: d.test_id,
         code: d.code,
-        passed: d.passed
+        passed: d.passed,
       }))
 
-      const { error } = await supabase.from('candidate_results').upsert(insertData, { onConflict: 'email,track,test_id' })
+      const { error } = await supabase
+        .from('candidate_results')
+        .upsert(insertData, { onConflict: 'email,track,test_id' })
       if (error) console.error('Error saving final results:', error)
     }
 
-    await supabase.from('candidates')
-      .update({ completed: true, end_time: new Date().toISOString() })
+    await supabase
+      .from('candidates')
+      .update({
+        completed: true,
+        end_time: new Date().toISOString(),
+        inactivity_seconds: inactivitySecondsRef.current,
+        tab_switches: tabSwitchesRef.current,
+      })
       .eq('email', candidateEmail)
       .eq('track', activeTrack.id)
   }, [candidateEmail, activeTrack])
@@ -194,7 +219,7 @@ export default function AlgoViz({
     if (timeRemaining === null || timeRemaining <= 0 || isTimeUp || allTestsCompleted) return
 
     const interval = setInterval(() => {
-      setTimeRemaining(prev => {
+      setTimeRemaining((prev) => {
         if (prev === null) return null
         if (prev <= 1) {
           clearInterval(interval)
@@ -208,6 +233,41 @@ export default function AlgoViz({
 
     return () => clearInterval(interval)
   }, [timeRemaining, isTimeUp, allTestsCompleted, handleFinalSubmission])
+
+  // Detección inactividad (1 min sin mouse/teclado) y cambios de pestaña → solo en estado/refs; se envían a Supabase en el envío final
+  useEffect(() => {
+    if (!candidateEmail || !activeTrack || !selectedTest || isTimeUp || allTestsCompleted) return
+
+    const INACTIVITY_MS = 60 * 1000
+
+    const onActivity = () => {
+      lastActivityAt.current = Date.now()
+    }
+
+    const events = ['mousemove', 'mousedown', 'keydown', 'click', 'scroll']
+    events.forEach((e) => window.addEventListener(e, onActivity))
+
+    const interval = setInterval(() => {
+      const now = Date.now()
+      if (now - lastActivityAt.current >= INACTIVITY_MS) {
+        lastActivityAt.current = now
+        inactivitySecondsRef.current += 60
+      }
+    }, INACTIVITY_MS)
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        tabSwitchesRef.current += 1
+      }
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, onActivity))
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+    }
+  }, [candidateEmail, activeTrack, selectedTest, isTimeUp, allTestsCompleted])
 
   const handleSelectTest = useCallback(
     (testId: string, force = false) => {
@@ -223,7 +283,7 @@ export default function AlgoViz({
         setMobileCodePanelOpen(false)
       }
     },
-    [isMobile, activeTrack, completedTestIds]
+    [isMobile, activeTrack, completedTestIds],
   )
 
   const handleNextTest = useCallback(() => {
@@ -233,14 +293,14 @@ export default function AlgoViz({
   }, [activeTrack, currentTestIndex, hasNextTest, handleSelectTest])
 
   const handleToggleMobileSidebar = useCallback(() => {
-    setMobileSidebarOpen(prev => !prev)
+    setMobileSidebarOpen((prev) => !prev)
     if (!mobileSidebarOpen && mobileCodePanelOpen) {
       setMobileCodePanelOpen(false)
     }
   }, [mobileSidebarOpen, mobileCodePanelOpen])
 
   const handleToggleMobileCodePanel = useCallback(() => {
-    setMobileCodePanelOpen(prev => !prev)
+    setMobileCodePanelOpen((prev) => !prev)
     if (!mobileCodePanelOpen && mobileSidebarOpen) {
       setMobileSidebarOpen(false)
     }
@@ -256,7 +316,7 @@ export default function AlgoViz({
       const newDraftInfo = {
         test_id: selectedTest.id,
         code: code,
-        passed: evaluationSuccess
+        passed: evaluationSuccess,
       }
 
       const existingIdx = existingDrafts.findIndex((d: any) => d.test_id === selectedTest.id)
@@ -266,18 +326,17 @@ export default function AlgoViz({
         existingDrafts.push(newDraftInfo)
       }
       localStorage.setItem(draftKey, JSON.stringify(existingDrafts))
-
     } catch (err) {
       console.error('Unexpected error saving local result:', err)
     }
 
-    setCompletedTestIds(prev => {
+    setCompletedTestIds((prev) => {
       if (prev.includes(selectedTest.id)) return prev
       return [...prev, selectedTest.id]
     })
 
     // Auto-advance logic
-    const currIndex = activeTrack.tests.findIndex(t => t.id === selectedTest.id)
+    const currIndex = activeTrack.tests.findIndex((t) => t.id === selectedTest.id)
     let nextIndex = currIndex + 1
     let foundNext = false
     const currentCompleted = [...completedTestIds, selectedTest.id]
@@ -293,7 +352,7 @@ export default function AlgoViz({
     }
 
     if (!foundNext) {
-      const missedTest = activeTrack.tests.find(t => !currentCompleted.includes(t.id))
+      const missedTest = activeTrack.tests.find((t) => !currentCompleted.includes(t.id))
       if (missedTest) {
         handleSelectTest(missedTest.id, true)
       } else {
@@ -326,11 +385,15 @@ export default function AlgoViz({
         {!isMobile && (
           <>
             <div
-              className={`shrink-0 h-full border-r border-white/8 bg-black transition-[width,transform] duration-300 ease-in-out z-10 ${sidebarCollapsed ? 'w-0 -translate-x-full' : ''
-                }`}
+              className={`shrink-0 h-full border-r border-white/8 bg-black transition-[width,transform] duration-300 ease-in-out z-10 ${
+                sidebarCollapsed ? 'w-0 -translate-x-full' : ''
+              }`}
               style={{ width: sidebarCollapsed ? 0 : sidebarWidth }}
             >
-              <div className="w-[var(--sidebar-width)] h-full overflow-hidden" style={{ '--sidebar-width': `${sidebarWidth}px` } as any}>
+              <div
+                className="w-[var(--sidebar-width)] h-full overflow-hidden"
+                style={{ '--sidebar-width': `${sidebarWidth}px` } as any}
+              >
                 <Sidebar
                   categories={categories}
                   activeTrackId={initialTrackId || null}
@@ -349,8 +412,11 @@ export default function AlgoViz({
                 onMouseDown={handleSidebarResize}
               >
                 <div className="absolute inset-y-0 -left-1 -right-1" />
-                <div className={`absolute inset-y-0 left-1/2 -ml-[0.5px] w-[1px] ${isDraggingSidebar ? 'bg-white/20' : 'bg-transparent group-hover:bg-white/10'
-                  }`} />
+                <div
+                  className={`absolute inset-y-0 left-1/2 -ml-[0.5px] w-[1px] ${
+                    isDraggingSidebar ? 'bg-white/20' : 'bg-transparent group-hover:bg-white/10'
+                  }`}
+                />
               </div>
             )}
           </>
@@ -367,7 +433,12 @@ export default function AlgoViz({
                   className="p-1.5 hover:bg-white/10 rounded-lg text-white/70"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                 </button>
               </div>
@@ -401,7 +472,7 @@ export default function AlgoViz({
                 <span className="text-3xl">⏱️</span>
               </div>
               <h2 className="text-3xl font-bold text-white mb-4">
-                {locale === 'es' ? '¡El tiempo terminó!' : 'Time\'s Up!'}
+                {locale === 'es' ? '¡El tiempo terminó!' : "Time's Up!"}
               </h2>
               <p className="text-neutral-400 text-center max-w-md cursor-default">
                 {locale === 'es'
@@ -447,7 +518,7 @@ export default function AlgoViz({
               t={translations[locale]}
               locale={locale}
               onSelectTest={(test) => {
-                // If WelcomeScreen returns a Test, but it actually shouldn't for tracks? 
+                // If WelcomeScreen returns a Test, but it actually shouldn't for tracks?
                 // Let's redirect to a track.
                 window.location.href = `/${test.id}`
               }}
@@ -469,14 +540,22 @@ export default function AlgoViz({
                 onMouseDown={handleExplanationPanelResize}
               >
                 <div className="absolute inset-y-0 -left-1 -right-1" />
-                <div className={`absolute inset-y-0 left-1/2 -ml-[0.5px] w-[1px] ${isDraggingExplanationPanel ? 'bg-white/20' : 'bg-transparent group-hover:bg-white/10'
-                  }`} />
+                <div
+                  className={`absolute inset-y-0 left-1/2 -ml-[0.5px] w-[1px] ${
+                    isDraggingExplanationPanel
+                      ? 'bg-white/20'
+                      : 'bg-transparent group-hover:bg-white/10'
+                  }`}
+                />
               </div>
             )}
 
             <div
-              className={`shrink-0 h-full bg-[#0a0a0a] transition-[width,transform] duration-300 ease-in-out z-10 ${explanationPanelCollapsed ? 'w-0 translate-x-full border-0' : 'border-l border-white/8 shadow-[-8px_0_24px_-12px_rgba(0,0,0,0.5)]'
-                }`}
+              className={`shrink-0 h-full bg-[#0a0a0a] transition-[width,transform] duration-300 ease-in-out z-10 ${
+                explanationPanelCollapsed
+                  ? 'w-0 translate-x-full border-0'
+                  : 'border-l border-white/8 shadow-[-8px_0_24px_-12px_rgba(0,0,0,0.5)]'
+              }`}
               style={{ width: explanationPanelCollapsed ? 0 : explanationPanelWidth }}
             >
               <div className="w-full h-full overflow-hidden relative">
@@ -504,7 +583,12 @@ export default function AlgoViz({
                   className="p-1.5 hover:bg-white/10 rounded-lg text-white/70"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                 </button>
               </div>

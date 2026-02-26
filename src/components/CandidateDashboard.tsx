@@ -17,6 +17,8 @@ interface CandidateInfo {
     completed: boolean
     start_time: string
     end_time: string
+    inactivity_seconds?: number | null
+    tab_switches?: number | null
 }
 
 export default function CandidateDashboard() {
@@ -148,6 +150,16 @@ export default function CandidateDashboard() {
                             <p>Iniciado: {new Date(candidate.start_time).toLocaleString()}</p>
                             {candidate.end_time && (
                                 <p>Finalizado: {new Date(candidate.end_time).toLocaleString()}</p>
+                            )}
+                            {(candidate.inactivity_seconds != null && candidate.inactivity_seconds > 0) && (
+                                <p className="text-amber-400/90" title="Tiempo sin movimiento de ratón ni teclado (umbral 1 min)">
+                                    Inactividad: {Math.floor(candidate.inactivity_seconds / 60)} min
+                                </p>
+                            )}
+                            {(candidate.tab_switches != null && candidate.tab_switches > 0) && (
+                                <p className="text-amber-400/90" title="Veces que cambió de pestaña o perdió el foco">
+                                    Cambios de pestaña: {candidate.tab_switches}
+                                </p>
                             )}
                         </div>
                     </div>

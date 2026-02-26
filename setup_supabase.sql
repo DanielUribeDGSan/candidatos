@@ -7,6 +7,8 @@ create table public.candidates (
   start_time timestamp with time zone default timezone('utc'::text, now()),
   end_time timestamp with time zone,
   created_at timestamp with time zone default timezone('utc'::text, now()),
+  inactivity_seconds integer default 0,
+  tab_switches integer default 0,
   unique (email, track)
 );
 

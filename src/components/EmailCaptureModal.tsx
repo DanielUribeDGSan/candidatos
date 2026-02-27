@@ -32,10 +32,9 @@ export default function EmailCaptureModal({ onSuccess, trackId }: EmailCaptureMo
             if (cancelled) return
 
             const noCandidate = error?.code === 'PGRST116' || (!error && !data)
-            const hasNoStartTime = data && data.start_time == null
             const alreadyCompleted = data?.completed === true
 
-            if (noCandidate || hasNoStartTime || alreadyCompleted) {
+            if (noCandidate || alreadyCompleted) {
                 localStorage.removeItem(`algodev_test_email_${trackId}`)
                 localStorage.removeItem(`candidate_drafts_${storedEmail}_${trackId}`)
                 setIsVisible(true)

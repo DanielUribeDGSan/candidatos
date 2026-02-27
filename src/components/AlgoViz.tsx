@@ -114,46 +114,62 @@ export default function AlgoViz({ initialTrackId, locale = 'en' }: AlgoVizProps)
     if (!candidateEmail || !activeTrack) return
 
     const fetchCandidateData = async () => {
-      const { data: candidateInfo, error } = await supabase
-        .from('candidates')
-        .select('start_time, completed, inactivity_seconds, tab_switches')
-        .eq('email', candidateEmail)
-        .eq('track', activeTrack.id)
-        .maybeSingle()
+      try {
+        const { data: candidateInfo, error } = await supabase
+          .from('candidates')
+          .select('start_time, completed, inactivity_seconds, tab_switches')
+          .eq('email', candidateEmail)
+          .eq('track', activeTrack.id)
+          .maybeSingle()
 
-      const noCandidate = error?.code === 'PGRST116' || (!error && !candidateInfo)
-      const hasNoStartTime =
-        candidateInfo && candidateInfo.start_time == null && !candidateInfo.completed
+        if (error) throw error
 
-      if (noCandidate || hasNoStartTime) {
-        localStorage.removeItem(`algodev_test_email_${activeTrack.id}`)
-        localStorage.removeItem(`candidate_drafts_${candidateEmail}_${activeTrack.id}`)
-        setCandidateEmail(null)
-        setTimeRemaining(null)
-        setCompletedTestIds([])
-        return
-      }
+        if (!candidateInfo) {
+          localStorage.removeItem(`algodev_test_email_${activeTrack.id}`)
+          localStorage.removeItem(`candidate_drafts_${candidateEmail}_${activeTrack.id}`)
+          setCandidateEmail(null)
+          setTimeRemaining(null)
+          setCompletedTestIds([])
+          return
+        }
 
-      if (candidateInfo) {
+        const hasNoStartTime = candidateInfo.start_time == null && !candidateInfo.completed
+        const durationMs = 50 * 60 * 1000
+
         inactivitySecondsRef.current = candidateInfo.inactivity_seconds ?? 0
         tabSwitchesRef.current = candidateInfo.tab_switches ?? 0
         lastActivityAt.current = Date.now()
 
         if (candidateInfo.completed) {
           setAllTestsCompleted(true)
+          setTimeRemaining(0)
         } else if (candidateInfo.start_time) {
-          const durationMs = 50 * 60 * 1000 // 50 mins
           const start = new Date(candidateInfo.start_time).getTime()
           const now = Date.now()
           const elapsed = now - start
 
-          if (elapsed >= durationMs) {
+          if (Number.isNaN(start)) {
+            setTimeRemaining(50 * 60)
+          } else if (elapsed >= durationMs) {
             setIsTimeUp(true)
             setTimeRemaining(0)
           } else {
             setTimeRemaining(Math.floor((durationMs - elapsed) / 1000))
           }
+        } else if (hasNoStartTime) {
+          // Optimistic update
+          setTimeRemaining(50 * 60)
+          const now = new Date().toISOString()
+          await supabase
+            .from('candidates')
+            .update({ start_time: now })
+            .eq('email', candidateEmail)
+            .eq('track', activeTrack.id)
         }
+      } catch (err) {
+        console.error('Error fetching candidate data:', err)
+        // Fallback: at least show the timer if we are in this view
+        if (timeRemaining === null) setTimeRemaining(50 * 60)
       }
 
       const { data: results } = await supabase
@@ -385,9 +401,8 @@ export default function AlgoViz({ initialTrackId, locale = 'en' }: AlgoVizProps)
         {!isMobile && (
           <>
             <div
-              className={`shrink-0 h-full border-r border-white/8 bg-black transition-[width,transform] duration-300 ease-in-out z-10 ${
-                sidebarCollapsed ? 'w-0 -translate-x-full' : ''
-              }`}
+              className={`shrink-0 h-full border-r border-white/8 bg-black transition-[width,transform] duration-300 ease-in-out z-10 ${sidebarCollapsed ? 'w-0 -translate-x-full' : ''
+                }`}
               style={{ width: sidebarCollapsed ? 0 : sidebarWidth }}
             >
               <div
@@ -413,9 +428,8 @@ export default function AlgoViz({ initialTrackId, locale = 'en' }: AlgoVizProps)
               >
                 <div className="absolute inset-y-0 -left-1 -right-1" />
                 <div
-                  className={`absolute inset-y-0 left-1/2 -ml-[0.5px] w-[1px] ${
-                    isDraggingSidebar ? 'bg-white/20' : 'bg-transparent group-hover:bg-white/10'
-                  }`}
+                  className={`absolute inset-y-0 left-1/2 -ml-[0.5px] w-[1px] ${isDraggingSidebar ? 'bg-white/20' : 'bg-transparent group-hover:bg-white/10'
+                    }`}
                 />
               </div>
             )}
@@ -541,21 +555,19 @@ export default function AlgoViz({ initialTrackId, locale = 'en' }: AlgoVizProps)
               >
                 <div className="absolute inset-y-0 -left-1 -right-1" />
                 <div
-                  className={`absolute inset-y-0 left-1/2 -ml-[0.5px] w-[1px] ${
-                    isDraggingExplanationPanel
-                      ? 'bg-white/20'
-                      : 'bg-transparent group-hover:bg-white/10'
-                  }`}
+                  className={`absolute inset-y-0 left-1/2 -ml-[0.5px] w-[1px] ${isDraggingExplanationPanel
+                    ? 'bg-white/20'
+                    : 'bg-transparent group-hover:bg-white/10'
+                    }`}
                 />
               </div>
             )}
 
             <div
-              className={`shrink-0 h-full bg-[#0a0a0a] transition-[width,transform] duration-300 ease-in-out z-10 ${
-                explanationPanelCollapsed
-                  ? 'w-0 translate-x-full border-0'
-                  : 'border-l border-white/8 shadow-[-8px_0_24px_-12px_rgba(0,0,0,0.5)]'
-              }`}
+              className={`shrink-0 h-full bg-[#0a0a0a] transition-[width,transform] duration-300 ease-in-out z-10 ${explanationPanelCollapsed
+                ? 'w-0 translate-x-full border-0'
+                : 'border-l border-white/8 shadow-[-8px_0_24px_-12px_rgba(0,0,0,0.5)]'
+                }`}
               style={{ width: explanationPanelCollapsed ? 0 : explanationPanelWidth }}
             >
               <div className="w-full h-full overflow-hidden relative">

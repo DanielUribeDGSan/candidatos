@@ -1,6 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { supabase } from '../lib/supabase'
 import { tests } from '../lib/tests'
+import TestDescriptionContent from '@components/TestDescriptionContent'
 
 const LazyEditor = lazy(() => import('@monaco-editor/react'))
 
@@ -95,6 +96,8 @@ export default function CandidateDashboard() {
         const test = tests.find(t => t.id === testId)
         return test ? test.name : testId
     }
+
+    const getTest = (testId: string) => tests.find(t => t.id === testId)
 
     return (
         <div className="max-w-7xl mx-auto p-6 lg:p-12">
@@ -201,6 +204,21 @@ export default function CandidateDashboard() {
                                                 )}
                                             </div>
                                         </div>
+                                        {/* Misma Explanation que vio el candidato (objetivo, requisitos, bloques de código) */}
+                                        {(() => {
+                                            const test = getTest(res.test_id)
+                                            if (!test) return null
+                                            return (
+                                                <div className="border-t border-white/10 bg-white/[0.02] px-6 py-4">
+                                                    <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-3">Explanation</p>
+                                                    <TestDescriptionContent
+                                                        description={test.description}
+                                                        difficulty={test.difficulty}
+                                                        locale="es"
+                                                    />
+                                                </div>
+                                            )
+                                        })()}
                                         <div className="p-0 border-t border-white/10">
                                             <Suspense fallback={<div className="p-6 text-sm text-neutral-500 font-mono">Cargando editor...</div>}>
                                                 <LazyEditor

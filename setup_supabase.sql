@@ -9,6 +9,7 @@ create table public.candidates (
   created_at timestamp with time zone default timezone('utc'::text, now()),
   inactivity_seconds integer default 0,
   tab_switches integer default 0,
+  review text,
   unique (email, track)
 );
 

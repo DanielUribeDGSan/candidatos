@@ -156,7 +156,7 @@ export default function TestDescriptionContent({
   flushCodeBlock()
 
   return (
-    <article className="text-[14px] text-neutral-300 leading-relaxed font-[inherit] [&_pre]:my-4 [&_pre]:rounded-lg [&_pre]:border [&_pre]:border-white/10 [&_pre]:bg-neutral-900/80 [&_pre]:p-4 [&_pre]:overflow-x-auto [&_pre_code]:block [&_pre_code]:font-mono [&_pre_code]:text-[13px] [&_pre_code]:leading-relaxed [&_pre_code]:text-neutral-300 [&_pre_code]:whitespace-pre">
+    <article className="text-[14px] text-neutral-300 leading-relaxed font-[inherit] [&_pre]:my-4 [&_pre]:rounded-lg [&_pre]:border [&_pre]:border-white/10 [&_pre]:bg-neutral-900/80 [&_pre]:p-4 [&_pre]:overflow-x-auto [&_pre]:min-w-0 [&_pre]:max-w-full [&_pre_code]:block [&_pre_code]:font-mono [&_pre_code]:text-[13px] [&_pre_code]:leading-relaxed [&_pre_code]:text-neutral-300 [&_pre_code]:whitespace-pre [&_pre_code]:min-w-max">
       {elements}
     </article>
   )

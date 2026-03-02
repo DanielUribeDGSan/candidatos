@@ -26,6 +26,7 @@ export default function AlgoViz({ initialTrackId, locale = 'en' }: AlgoVizProps)
   const [isMobile, setIsMobile] = useState(false)
   const [candidateEmail, setCandidateEmail] = useState<string | null>(null)
   const [evaluationSuccess, setEvaluationSuccess] = useState(false)
+  const [showStartAlert, setShowStartAlert] = useState(false)
 
   const [completedTestIds, setCompletedTestIds] = useState<string[]>([])
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
@@ -476,8 +477,44 @@ export default function AlgoViz({ initialTrackId, locale = 'en' }: AlgoVizProps)
           {activeTrack && !candidateEmail && (
             <EmailCaptureModal
               trackId={activeTrack.id}
-              onSuccess={(email) => setCandidateEmail(email)}
+              onSuccess={(email) => {
+                setCandidateEmail(email)
+                setShowStartAlert(true)
+              }}
             />
+          )}
+
+          {/* Alerta al empezar: tiempo iniciado y recordatorio de "Completar tarea" */}
+          {showStartAlert && candidateEmail && (
+            <div className="absolute inset-0 z-40 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+              <div className="max-w-md w-full bg-[#0a0a0a] border border-white/10 rounded-xl p-6 shadow-xl">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+                    <span className="text-lg">⏱️</span>
+                  </div>
+                  <h3 className="text-lg font-semibold text-white">
+                    {locale === 'es' ? '¡El tiempo ya ha comenzado!' : 'Time has started!'}
+                  </h3>
+                </div>
+                <p className="text-neutral-400 text-sm leading-relaxed mb-2">
+                  {locale === 'es' ? (
+                    <>El contador está en marcha. Recuerda que al terminar cada tarea debes hacer clic en el botón <strong className="text-white">Completar tarea</strong> para que quede registrada.</>
+                  ) : (
+                    <>The timer is running. Remember to click the <strong className="text-white">Complete task</strong> button when you finish each task so it is recorded.</>
+                  )}
+                </p>
+                <p className="text-neutral-500 text-xs mb-6">
+                  {locale === 'es' ? 'Puedes cerrar esta ventana y comenzar.' : 'You can close this and start.'}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowStartAlert(false)}
+                  className="w-full py-2.5 px-4 text-sm font-medium rounded-lg bg-white/10 text-white border border-white/20 hover:bg-white/15 transition-colors"
+                >
+                  {locale === 'es' ? 'Entendido' : 'Got it'}
+                </button>
+              </div>
+            </div>
           )}
 
           {isTimeUp ? (

@@ -33,16 +33,37 @@ export default function AlgoViz({ initialTrackId, locale = 'en' }: AlgoVizProps)
   const [isTimeUp, setIsTimeUp] = useState(false)
   const [allTestsCompleted, setAllTestsCompleted] = useState(false)
 
-  // Anti-cheating: inactividad (sin mouse/teclado 1 min) y cambios de pestaña (solo refs; se persisten en Supabase)
-  const lastActivityAt = useRef(Date.now())
-  const inactivitySecondsRef = useRef(0)
-  const tabSwitchesRef = useRef(0)
-
-  // Track state
+  // Track state (declarado antes que getInitialCodeForTest para evitar "before initialization")
   const activeTrack = tracks.find((t) => t.id === initialTrackId) || null
   const [selectedTest, setSelectedTest] = useState<Test | null>(() => {
     return activeTrack ? activeTrack.tests[0] : null
   })
+
+  // Anti-cheating: inactividad (sin mouse/teclado 1 min) y cambios de pestaña (solo refs; se persisten en Supabase)
+  const lastActivityAt = useRef(Date.now())
+  const inactivitySecondsRef = useRef(0)
+  const tabSwitchesRef = useRef(0)
+  // Código actual del editor para guardar en draft al cambiar de test (evitar perder lo escrito)
+  const currentEditorCodeRef = useRef<string>('')
+
+  const getInitialCodeForTest = useCallback(
+    (testId: string) => {
+      if (!candidateEmail || !activeTrack) return ''
+      const draftKey = `candidate_drafts_${candidateEmail}_${activeTrack.id}`
+      const drafts = JSON.parse(localStorage.getItem(draftKey) || '[]')
+      const draft = drafts.find((d: any) => d.test_id === testId)
+      if (draft?.code != null) return draft.code
+      const t = activeTrack.tests.find((x) => x.id === testId)
+      return t?.initialCode ?? ''
+    },
+    [candidateEmail, activeTrack],
+  )
+
+  useEffect(() => {
+    if (selectedTest) {
+      currentEditorCodeRef.current = getInitialCodeForTest(selectedTest.id)
+    }
+  }, [selectedTest?.id, getInitialCodeForTest])
 
   // Helpers
   const currentTestIndex =
@@ -192,7 +213,8 @@ export default function AlgoViz({ initialTrackId, locale = 'en' }: AlgoVizProps)
       }
 
       localStorage.setItem(draftKey, JSON.stringify(mergedDrafts))
-      setCompletedTestIds(mergedDrafts.map((r: any) => r.test_id))
+      // Solo marcar como completados los tests donde el usuario pulsó "Completar tarea" (passed === true)
+      setCompletedTestIds(mergedDrafts.filter((r: any) => r.passed === true).map((r: any) => r.test_id))
     }
 
     fetchCandidateData()
@@ -290,6 +312,27 @@ export default function AlgoViz({ initialTrackId, locale = 'en' }: AlgoVizProps)
     (testId: string, force = false) => {
       if (!activeTrack) return
       if (!force && completedTestIds.includes(testId)) return // Disallow moving back to completed normally
+
+      // Guardar en localStorage el código del test que estamos dejando (para no perderlo al volver)
+      if (candidateEmail && selectedTest && selectedTest.id !== testId) {
+        const draftKey = `candidate_drafts_${candidateEmail}_${activeTrack.id}`
+        const existingDrafts = JSON.parse(localStorage.getItem(draftKey) || '[]')
+        const codeToSave = currentEditorCodeRef.current
+        const existingIdx = existingDrafts.findIndex((d: any) => d.test_id === selectedTest.id)
+        const existing = existingIdx >= 0 ? existingDrafts[existingIdx] : null
+        const newDraft = {
+          test_id: selectedTest.id,
+          code: codeToSave,
+          passed: existing?.passed ?? false,
+        }
+        if (existingIdx >= 0) {
+          existingDrafts[existingIdx] = { ...existing, ...newDraft }
+        } else {
+          existingDrafts.push(newDraft)
+        }
+        localStorage.setItem(draftKey, JSON.stringify(existingDrafts))
+      }
+
       const test = activeTrack.tests.find((t) => t.id === testId)
       if (test) {
         setSelectedTest(test)
@@ -300,7 +343,7 @@ export default function AlgoViz({ initialTrackId, locale = 'en' }: AlgoVizProps)
         setMobileCodePanelOpen(false)
       }
     },
-    [isMobile, activeTrack, completedTestIds],
+    [isMobile, activeTrack, completedTestIds, candidateEmail, selectedTest],
   )
 
   const handleNextTest = useCallback(() => {
@@ -555,11 +598,16 @@ export default function AlgoViz({ initialTrackId, locale = 'en' }: AlgoVizProps)
             <div className="absolute inset-0 p-4 md:p-6 lg:p-8 flex flex-col items-center justify-center">
               <div className="w-full h-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl border border-white/5 bg-gradient-to-b from-white/[0.03] to-transparent">
                 <EditableCodePanel
-                  initialCode={selectedTest.initialCode}
+                  key={selectedTest.id}
+                  initialCode={getInitialCodeForTest(selectedTest.id)}
+                  templateCode={selectedTest.initialCode}
                   testId={selectedTest.id}
                   locale={locale}
                   onEvaluationResult={setEvaluationSuccess}
                   onCompleteTask={handleCompleteTask}
+                  onCodeChange={(code) => {
+                    currentEditorCodeRef.current = code
+                  }}
                   evaluationRegex={selectedTest.evaluationRegex}
                 />
               </div>

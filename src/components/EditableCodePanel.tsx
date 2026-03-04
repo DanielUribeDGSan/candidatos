@@ -5,14 +5,17 @@ const LazyEditor = lazy(() => import('@monaco-editor/react'))
 
 interface EditableCodePanelProps {
     initialCode: string
+    /** Plantilla original del test (para validar "debes modificar"); si no se pasa, se usa initialCode */
+    templateCode?: string
     locale?: string
     onEvaluationResult?: (success: boolean) => void
     onCompleteTask?: (code: string) => void
+    onCodeChange?: (code: string) => void
     evaluationRegex?: string
     testId?: string
 }
 
-export default function EditableCodePanel({ initialCode, locale = 'en', onEvaluationResult, onCompleteTask, evaluationRegex, testId }: EditableCodePanelProps) {
+export default function EditableCodePanel({ initialCode, templateCode, locale = 'en', onEvaluationResult, onCompleteTask, onCodeChange, evaluationRegex, testId }: EditableCodePanelProps) {
     const [code, setCode] = useState(initialCode)
     const [consoleOutput, setConsoleOutput] = useState<string[]>([])
     const [isMounted, setIsMounted] = useState(false)
@@ -221,7 +224,8 @@ export default function EditableCodePanel({ initialCode, locale = 'en', onEvalua
                             </button>
                             <button
                                 onClick={() => {
-                                    if (code.trim() === initialCode.trim()) {
+                                    const base = (templateCode ?? initialCode).trim()
+                                    if (code.trim() === base) {
                                         alert(locale === 'es' ? 'Debes modificar el código antes de completar la tarea.' : 'You must modify the code before completing the task.')
                                         return
                                     }
@@ -267,7 +271,11 @@ export default function EditableCodePanel({ initialCode, locale = 'en', onEvalua
                                 <LazyEditor
                                     defaultLanguage="javascript"
                                     value={code}
-                                    onChange={(v) => setCode(v || '')}
+                                    onChange={(v) => {
+                                        const next = v || ''
+                                        setCode(next)
+                                        onCodeChange?.(next)
+                                    }}
                                     theme="vs-dark"
                                     onMount={handleEditorDidMount}
                                     options={{

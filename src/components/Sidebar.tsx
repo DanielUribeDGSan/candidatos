@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import type { Category, Track } from '@lib/types'
 import type { Locale } from '@i18n/translations'
 import { translations, getCategoryName } from '@i18n/translations'
@@ -244,20 +244,7 @@ export default function Sidebar({ categories, activeTrackId, activeTestId, onSel
   }
 
   const [search, setSearch] = useState('')
-  const [searchFocused, setSearchFocused] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
-      if (e.key === '/') {
-        e.preventDefault()
-        searchInputRef.current?.focus()
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
 
   if (!activeTrack) {
     return (
@@ -296,8 +283,6 @@ export default function Sidebar({ categories, activeTrackId, activeTestId, onSel
             placeholder={t.searchPlaceholder}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            onFocus={() => setSearchFocused(true)}
-            onBlur={() => setSearchFocused(false)}
             aria-label={t.searchPlaceholder}
             className="w-full bg-white/3 border border-white/8 rounded-lg pl-9 pr-8 py-2 text-xs text-neutral-300 placeholder-neutral-600 outline-none focus:border-white/20 focus:bg-white/5 transition-all"
           />
@@ -322,16 +307,7 @@ export default function Sidebar({ categories, activeTrackId, activeTestId, onSel
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
-          ) : (
-            !searchFocused && (
-              <kbd
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 inline-flex items-center justify-center w-[18px] h-[18px] text-[10px] font-mono rounded border border-white/10 text-neutral-600 bg-white/3"
-                aria-hidden="true"
-              >
-                /
-              </kbd>
-            )
-          )}
+          ) : null}
         </div>
       </div>
 

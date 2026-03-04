@@ -246,19 +246,21 @@ export default function EditableCodePanel({ initialCode, locale = 'en', onEvalua
                         >
                             {locale === 'es' ? 'Completar Tarea' : 'Complete Task'}
                         </button>
-                        <button
-                            onClick={runCode}
-                            className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-semibold rounded-md transition-colors shadow-lg shadow-emerald-500/20"
-                        >
-                            {locale === 'es' ? 'Ejecutar' : 'Run Code'}
-                        </button>
+                        {evaluationRegex && (
+                            <button
+                                onClick={runCode}
+                                className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-semibold rounded-md transition-colors shadow-lg shadow-emerald-500/20"
+                            >
+                                {locale === 'es' ? 'Ejecutar' : 'Run Code'}
+                            </button>
+                        )}
                     </div>
                 </div>
 
                 <div className="flex-1 flex flex-col overflow-hidden min-h-[300px]">
                     <div
                         className="flex flex-col overflow-hidden transition-opacity duration-500 ease-in-out"
-                        style={{ opacity: editorReady ? 1 : 0, height: '65%' }}
+                        style={{ opacity: editorReady ? 1 : 0, height: evaluationRegex ? '65%' : '100%' }}
                     >
                         {isMounted && (
                             <Suspense fallback={<div className="h-full flex items-center justify-center text-white/50">Loading editor...</div>}>
@@ -280,25 +282,27 @@ export default function EditableCodePanel({ initialCode, locale = 'en', onEvalua
                         )}
                     </div>
 
-                    {/* Console output panel */}
-                    <div className="shrink-0 border-t border-white/10 bg-[#0a0a0a] flex flex-col" style={{ height: '35%' }}>
-                        <div className="px-4 py-2 flex items-center gap-2 shrink-0 border-b border-white/5">
-                            <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
-                                Console Output
-                            </span>
+                    {/* Console output panel: solo cuando se puede ejecutar código (evaluationRegex) */}
+                    {evaluationRegex && (
+                        <div className="shrink-0 border-t border-white/10 bg-[#0a0a0a] flex flex-col" style={{ height: '35%' }}>
+                            <div className="px-4 py-2 flex items-center gap-2 shrink-0 border-b border-white/5">
+                                <span className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
+                                    Console Output
+                                </span>
+                            </div>
+                            <div className="px-4 py-3 overflow-auto flex-1 h-full max-h-full">
+                                {consoleOutput.length === 0 ? (
+                                    <span className="text-[13px] text-neutral-600 font-mono italic shadow-none border-none outline-none">No output yet...</span>
+                                ) : (
+                                    consoleOutput.map((line, i) => (
+                                        <div key={i} className={`font-mono text-[13px] leading-relaxed ${line.startsWith('ERROR') ? 'text-red-400' : 'text-neutral-300'}`}>
+                                            {line}
+                                        </div>
+                                    ))
+                                )}
+                            </div>
                         </div>
-                        <div className="px-4 py-3 overflow-auto flex-1 h-full max-h-full">
-                            {consoleOutput.length === 0 ? (
-                                <span className="text-[13px] text-neutral-600 font-mono italic shadow-none border-none outline-none">No output yet...</span>
-                            ) : (
-                                consoleOutput.map((line, i) => (
-                                    <div key={i} className={`font-mono text-[13px] leading-relaxed ${line.startsWith('ERROR') ? 'text-red-400' : 'text-neutral-300'}`}>
-                                        {line}
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
+                    )}
                 </div>
             </div>
         </>
